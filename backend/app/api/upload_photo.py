@@ -1,37 +1,37 @@
 import os
 import shutil
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi import APIRouter
-import aiofiles
-from uuid import uuid4
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from datetime import datetime
+from typing import List
+from app.services.batch_service import create_batch, create_batch_item
+from app.services.file_service import save_upload_file
+from app.schemas import UploadResponse
+from app.api.dependencies import get_current_user
+from app.models import User
 
 router = APIRouter()
 
-@router.post("/upload_photo")
-async def upload_multiple_files(photos: list[UploadFile] = File(...)):
-    saved_filenames = []
-    
-    for file in photos:
-        # Генерируем уникальное имя для каждого файла
-        ext = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid4().hex}{ext}"
-        file_path = os.path.join('uploads', unique_filename)  # теперь строка
-        
-        try:
-            # Убедимся, что папка uploads существует
-            os.makedirs('uploads', exist_ok=True)
-            
-            # Асинхронная запись
-            async with aiofiles.open(file_path, 'wb') as buffer:
-                content = await file.read()
-                await buffer.write(content)
-            
-            saved_filenames.append(unique_filename)
-            
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Ошибка сохранения {file.filename}: {e}")
-        finally:
-            await file.close()
-    
-    return JSONResponse(content={"status": "загружено", "filenames": saved_filenames})
+@router.post("/upload_photo", response_model=UploadResponse)
+async def upload_photo(
+    photos: List[UploadFile] = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    if not photos:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    # Генерируем имя пакета на основе времени
+    batch_name = f"Batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    # Создаём пакет в БД (статус по умолчанию "pending")
+    batch = create_batch(current_user.id, batch_name)
+
+    # Сохраняем каждый файл и создаём запись в batch_items
+    for photo in photos:
+        # Физическое сохранение (папка uploads/<user_id>/<batch_id>/)
+        file_path = save_upload_file(photo, current_user.id, batch.id)
+
+        # Создаём запись в таблице batch_items (статус "pending")
+        create_batch_item(batch.id, photo.filename, file_path)
+
+    # Возвращаем ответ по ТЗ
+    return UploadResponse(status="ok")
