@@ -5,4 +5,5 @@ from .schemas import (
     ItemInfo,
     BatchItemsResponse,
     UploadResponse,
+    StatusUpdateRequest,   # <--- обязательно добавьте эту строку
 )

@@ -7,6 +7,7 @@ from app.db.database import engine
 
 # Импорт роутеров
 from app.api import upload_photo, get_info
+from app.api import daemon
 
 app = FastAPI()
 
@@ -25,5 +26,6 @@ app.add_middleware(
 # Подключение роутеров
 app.include_router(upload_photo.router, prefix="/api", tags=["upload_photo"])
 app.include_router(get_info.router, prefix="/api", tags=["get_info"])
+app.include_router(daemon.router, prefix="/api", tags=["daemon"])
 
 # Если у вас есть другие роутеры (interact_with_db) – добавьте их аналогично

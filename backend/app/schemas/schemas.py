@@ -22,3 +22,7 @@ class BatchItemsResponse(BaseModel):
 
 class UploadResponse(BaseModel):
     status: str
+
+class StatusUpdateRequest(BaseModel):
+    item_id: int
+    new_status: str   # "processed", "failed", "completed"
